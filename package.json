@@ -1,0 +1,55 @@
+{
+  "name": "smart-uploader-lambda-annotator",
+  "version": "1.0.0",
+  "description": "A micro application for image upload, processing, and annotation using AWS Lambda",
+  "private": true,
+  "scripts": {
+    "install:all": "npm run install:frontend && npm run install:backend && npm run install:lambda",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && npm install",
+    "install:lambda": "cd lambda && pip install -r requirements.txt",
+    "start": "docker-compose up -d",
+    "start:dev": "docker-compose up",
+    "stop": "docker-compose down",
+    "build": "docker-compose build",
+    "test": "npm run test:frontend && npm run test:backend && npm run test:lambda",
+    "test:frontend": "cd frontend && npm test -- --watchAll=false --coverage",
+    "test:backend": "cd backend && npm test -- --coverage",
+    "test:lambda": "cd lambda && python -m pytest test_handler.py -v --cov=handler",
+    "test:e2e": "npm run test:frontend && npm run test:backend && npm run test:lambda",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:fix": "npm run lint:frontend:fix && npm run lint:backend:fix",
+    "lint:frontend:fix": "cd frontend && npm run lint:fix",
+    "lint:backend:fix": "cd backend && npm run lint:fix",
+    "clean": "npm run clean:frontend && npm run clean:backend && npm run clean:lambda",
+    "clean:frontend": "cd frontend && rm -rf node_modules build coverage",
+    "clean:backend": "cd backend && rm -rf node_modules dist coverage",
+    "clean:lambda": "cd lambda && find . -type d -name __pycache__ -delete && find . -name '*.pyc' -delete",
+    "deploy:dev": "cd infrastructure && serverless deploy --stage dev",
+    "deploy:staging": "cd infrastructure && serverless deploy --stage staging",
+    "deploy:prod": "cd infrastructure && serverless deploy --stage production",
+    "setup:localstack": "chmod +x infrastructure/localstack/init.sh && ./infrastructure/localstack/init.sh"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "s3",
+    "image-processing",
+    "opencv",
+    "react",
+    "nestjs",
+    "python",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}

@@ -1,0 +1,169 @@
+version: 2.1
+
+orbs:
+  node: circleci/node@5.1.0
+  python: circleci/python@2.1.0
+  docker: circleci/docker@2.4.0
+
+jobs:
+  test-frontend:
+    docker:
+      - image: cimg/node:18.17
+    steps:
+      - checkout
+      - node/install-packages:
+          app-dir: ./frontend
+          cache-path: frontend/node_modules
+      - run:
+          name: Run Frontend Tests
+          command: |
+            cd frontend
+            npm test -- --watchAll=false --coverage --passWithNoTests
+      - store_test_results:
+          path: frontend/coverage
+      - store_artifacts:
+          path: frontend/coverage/lcov-report
+          destination: frontend-coverage
+
+  test-backend:
+    docker:
+      - image: cimg/node:18.17
+    steps:
+      - checkout
+      - node/install-packages:
+          app-dir: ./backend
+          cache-path: backend/node_modules
+      - run:
+          name: Run Backend Tests
+          command: |
+            cd backend
+            npm test -- --coverage --passWithNoTests
+      - store_test_results:
+          path: backend/coverage
+      - store_artifacts:
+          path: backend/coverage/lcov-report
+          destination: backend-coverage
+
+  test-lambda:
+    docker:
+      - image: cimg/python:3.9
+    steps:
+      - checkout
+      - python/install-packages:
+          app-dir: ./lambda
+          pkg-manager: pip
+      - run:
+          name: Run Lambda Tests
+          command: |
+            cd lambda
+            python -m pytest test_handler.py -v --cov=handler --cov-report=html
+      - store_test_results:
+          path: lambda/htmlcov
+      - store_artifacts:
+          path: lambda/htmlcov
+          destination: lambda-coverage
+
+  build-and-test:
+    docker:
+      - image: cimg/node:18.17
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build and Test with Docker Compose
+          command: |
+            docker-compose build
+            docker-compose up -d
+            sleep 30
+            # Run integration tests here
+            docker-compose down
+
+  security-scan:
+    docker:
+      - image: cimg/node:18.17
+    steps:
+      - checkout
+      - run:
+          name: Security Scan Frontend
+          command: |
+            cd frontend
+            npm audit --audit-level=moderate
+      - run:
+          name: Security Scan Backend
+          command: |
+            cd backend
+            npm audit --audit-level=moderate
+
+  deploy-staging:
+    docker:
+      - image: cimg/node:18.17
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Deploy to Staging
+          command: |
+            # Deploy Lambda function
+            cd infrastructure
+            serverless deploy --stage staging
+
+            # Deploy frontend
+            cd ../frontend
+            npm run build
+            # Deploy to staging S3/CloudFront
+
+            # Deploy backend
+            cd ../backend
+            npm run build
+            # Deploy to staging environment
+
+  deploy-production:
+    docker:
+      - image: cimg/node:18.17
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Deploy to Production
+          command: |
+            # Deploy Lambda function
+            cd infrastructure
+            serverless deploy --stage production
+
+            # Deploy frontend
+            cd ../frontend
+            npm run build
+            # Deploy to production S3/CloudFront
+
+            # Deploy backend
+            cd ../backend
+            npm run build
+            # Deploy to production environment
+
+workflows:
+  version: 2
+  test-and-deploy:
+    jobs:
+      - test-frontend
+      - test-backend
+      - test-lambda
+      - security-scan:
+          requires:
+            - test-frontend
+            - test-backend
+            - test-lambda
+      - build-and-test:
+          requires:
+            - security-scan
+      - deploy-staging:
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only: develop
+      - deploy-production:
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only: main
