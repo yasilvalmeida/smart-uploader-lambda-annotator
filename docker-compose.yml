@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+      - REACT_APP_S3_BUCKET=smart-uploader-dev
+    depends_on:
+      - backend
+    networks:
+      - smart-uploader-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      - PORT=3001
+      - AWS_REGION=us-east-1
+      - AWS_S3_BUCKET=smart-uploader-dev
+      - AWS_LAMBDA_FUNCTION=image-processor
+      - NODE_ENV=development
+    depends_on:
+      - localstack
+    networks:
+      - smart-uploader-network
+
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,lambda,apigateway
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+    volumes:
+      - ./infrastructure/localstack:/tmp/localstack
+    networks:
+      - smart-uploader-network
+
+  lambda:
+    build:
+      context: ./lambda
+      dockerfile: Dockerfile
+    environment:
+      - AWS_REGION=us-east-1
+      - S3_BUCKET=smart-uploader-dev
+    depends_on:
+      - localstack
+    networks:
+      - smart-uploader-network
+
+networks:
+  smart-uploader-network:
+    driver: bridge 

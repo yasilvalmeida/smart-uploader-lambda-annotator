@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+      - REACT_APP_S3_BUCKET=smart-uploader-prod
+    depends_on:
+      - backend
+    networks:
+      - smart-uploader-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - AWS_REGION=us-east-1
+      - AWS_S3_BUCKET=smart-uploader-prod
+      - AWS_LAMBDA_FUNCTION=image-processor
+      - NODE_ENV=production
+    networks:
+      - smart-uploader-network
+
+networks:
+  smart-uploader-network:
+    driver: bridge 
